@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.tmp/
+coverage/
+test-results/
+next-env.d.ts
+pnpm-lock.yaml
+*.tsbuildinfo
+.env*
+tests/fixtures/

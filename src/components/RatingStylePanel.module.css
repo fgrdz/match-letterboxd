@@ -1,0 +1,103 @@
+.panel {
+  margin: 48px 0;
+}
+.profiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.profile,
+.comparison {
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  min-width: 0;
+}
+.profile h3 {
+  margin: 0;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.profile p,
+.comparison p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.profile .average {
+  color: var(--ink);
+  font-size: 32px;
+  margin: 20px 0 0;
+}
+.average span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.a {
+  --chart-color: var(--coral);
+}
+.b {
+  --chart-color: var(--lavender);
+}
+.histogram {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 24px 0;
+}
+.histogram li {
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted);
+}
+.track {
+  height: 90px;
+  display: flex;
+  align-items: flex-end;
+  background: #ffffff05;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+.track span {
+  width: 100%;
+  background: var(--chart-color);
+  border-radius: 3px 3px 0 0;
+}
+.comparison {
+  margin-top: 18px;
+}
+.comparison h3 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 500;
+}
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 48px;
+  margin: 24px 0;
+}
+.metrics dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.metrics dd {
+  margin: 8px 0 0;
+  font-size: 28px;
+  color: var(--coral);
+}
+@media (max-width: 600px) {
+  .profiles {
+    grid-template-columns: 1fr;
+  }
+  .profile,
+  .comparison {
+    padding: 20px;
+  }
+  .panel {
+    margin: 32px 0;
+  }
+}

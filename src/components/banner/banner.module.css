@@ -1,0 +1,127 @@
+.banner {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  min-height: 460px;
+  max-width: 1280px;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #242421;
+  border: 1px solid #ffffff12;
+  border-radius: 20px;
+}
+.backdrop {
+  z-index: -2;
+  object-fit: cover;
+  object-position: center 43%;
+}
+.shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, #101113eb 0%, #101113ba 45%, #10111330 100%),
+    linear-gradient(0deg, #101113eb, transparent 45%);
+}
+.content {
+  width: min(100%, 760px);
+  padding: 58px 64px 100px;
+}
+.eyebrow {
+  margin: 0 0 22px;
+  color: var(--coral);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+}
+.content h1 {
+  margin: 0;
+  font-size: clamp(36px, 4.5vw, 60px);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -2px;
+  text-wrap: balance;
+}
+.content h1 em {
+  color: var(--coral);
+  font-family: Georgia, serif;
+  font-weight: 400;
+}
+.description {
+  max-width: 350px;
+  margin: 22px 0 0;
+  color: #d1ccc7;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.credits {
+  position: absolute;
+  right: 26px;
+  bottom: 24px;
+  left: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #dedad4;
+  font-size: 10px;
+}
+.credits a {
+  padding: 8px 0;
+}
+.credits a span {
+  color: #b6b4b1;
+}
+.credits button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid #ffffff30;
+  border-radius: 999px;
+  background: #101113a6;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.credits button:hover {
+  background: #292a2eed;
+}
+.credits :focus-visible {
+  outline: 2px solid var(--coral);
+  outline-offset: 4px;
+}
+@media (max-width: 600px) {
+  .banner {
+    min-height: 430px;
+    border-radius: 14px;
+  }
+  .content {
+    padding: 40px 24px 100px;
+  }
+  .content h1 {
+    font-size: clamp(33px, 9vw, 44px);
+    letter-spacing: -1.2px;
+  }
+  .shade {
+    background:
+      linear-gradient(90deg, #101113cb, #10111372),
+      linear-gradient(0deg, #101113f5, transparent 70%);
+  }
+  .eyebrow {
+    font-size: 9px;
+    letter-spacing: 2px;
+  }
+  .credits {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    font-size: 9px;
+  }
+  .credits a span {
+    display: none;
+  }
+}
