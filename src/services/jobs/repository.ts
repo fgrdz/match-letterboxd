@@ -57,6 +57,14 @@ async function ensureSchema(): Promise<void> {
   if (schemaPromise) return schemaPromise;
   const sql = database();
   schemaPromise = (async () => {
+    // A warm database needs one read, not four DDL statements per cold instance.
+    const [schema] = await sql<Array<{ ready: boolean }>>`
+      select to_regclass('match_jobs') is not null
+        and to_regclass('profile_snapshots') is not null
+        and to_regclass('match_jobs_reuse_idx') is not null
+        and to_regclass('profile_snapshots_expiry_idx') is not null as ready
+    `;
+    if (schema.ready) return;
     await sql`
       create table if not exists match_jobs (
         id uuid primary key,
@@ -271,5 +279,23 @@ export async function saveProfileSnapshot(
     )
     on conflict (cache_key) do update
     set profile = excluded.profile, fetched_at = now(), expires_at = excluded.expires_at
+  `;
+}
+
+/** Retain source freshness: enrichment must never extend the scraping TTL. */
+export async function saveEnrichedSnapshot(cacheKey: string, profile: UserProfile): Promise<void> {
+  await ensureSchema();
+  const snapshot = { ...profile };
+  delete snapshot.genreSample;
+  await database()`
+    update profile_snapshots
+    set profile = ${JSON.stringify(snapshot)}::text::jsonb
+    where cache_key = ${cacheKey} and expires_at > now()
+      and (
+        case when jsonb_typeof(profile) = 'string'
+          then (profile #>> '{}')::jsonb
+          else profile
+        end
+      )->>'fetchedAt' = ${profile.fetchedAt}
   `;
 }

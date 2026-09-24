@@ -32,6 +32,7 @@ export async function compareProfiles(provider: MovieProvider, inputA: string, i
 
 /** Completes a comparison from normalized profiles, independently of their source. */
 export async function completeComparison(a: UserProfile, b: UserProfile) {
+  const started = Date.now();
   const initial = calculateMatch(a, b);
   const selected = uniqueMovies([
     ...initial.sharedFavorites.slice(0, 6).map((c) => c.movie),
@@ -67,6 +68,8 @@ export async function completeComparison(a: UserProfile, b: UserProfile) {
       break;
     }
   }
+  console.info('[match] visible movie enrichment duration', { ms: Date.now() - started });
+  const genresStarted = Date.now();
   if (!tmdbUnavailable) warnings.push(...(await enrichGenreSamples(a, b)));
   else {
     // Do not let the UI-selected metadata become the analytical population after an outage.
@@ -74,6 +77,7 @@ export async function completeComparison(a: UserProfile, b: UserProfile) {
     b.genreSample = { movieKeys: [], completed: false };
   }
   const match = calculateMatch(a, b);
+  console.info('[match] genre enrichment duration', { ms: Date.now() - genresStarted });
   console.info(`[match] ${match.stats.ratedByBoth} comparable movies`);
   return { a, b, match, warnings, tmdbEnabled: Boolean(process.env.TMDB_API_KEY) };
 }
