@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import './globals.css';
 export const metadata: Metadata = {
-  title: 'Movie Match — uma sessão para dois',
+  title: 'Movie Match',
   description: 'Compare seus gostos de cinema a partir de perfis públicos do Letterboxd.',
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

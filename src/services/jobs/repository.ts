@@ -19,7 +19,7 @@ interface JobRow {
   stage: MatchJobStage;
   progress: number;
   workflow_run_id: string | null;
-  result: StoredMatchResult | null;
+  result: unknown;
   error_message: string | null;
   created_at: Date;
   updated_at: Date;
@@ -103,6 +103,44 @@ function pairKey(usernameA: string, usernameB: string): string {
   return [usernameA.toLowerCase(), usernameB.toLowerCase()].sort().join(':');
 }
 
+/** Older writes could store a JSON string inside jsonb instead of an object. */
+function decodeStoredJson(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function isStoredProfile(value: unknown): value is UserProfile {
+  if (!value || typeof value !== 'object') return false;
+  const profile = value as Partial<UserProfile>;
+  return (
+    typeof profile.username === 'string' &&
+    typeof profile.fetchedAt === 'string' &&
+    Array.isArray(profile.movies) &&
+    Array.isArray(profile.warnings) &&
+    (profile.watchlist === undefined || Array.isArray(profile.watchlist))
+  );
+}
+
+function readStoredResult(value: unknown): StoredMatchResult | undefined {
+  const decoded = decodeStoredJson(value);
+  if (!decoded || typeof decoded !== 'object') return undefined;
+  const result = decoded as Partial<StoredMatchResult>;
+  if (
+    !isStoredProfile(result.a) ||
+    !isStoredProfile(result.b) ||
+    !result.match ||
+    !Array.isArray(result.warnings) ||
+    typeof result.tmdbEnabled !== 'boolean'
+  ) {
+    return undefined;
+  }
+  return result as StoredMatchResult;
+}
+
 function toJob(row: JobRow): MatchJob {
   return {
     id: row.id,
@@ -112,7 +150,7 @@ function toJob(row: JobRow): MatchJob {
     stage: row.stage,
     progress: row.progress,
     workflowRunId: row.workflow_run_id ?? undefined,
-    result: row.result ?? undefined,
+    result: readStoredResult(row.result),
     errorMessage: row.error_message ?? undefined,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
@@ -183,10 +221,11 @@ export async function updateJobProgress(
 
 export async function completeJob(id: string, result: StoredMatchResult): Promise<void> {
   await ensureSchema();
+  // Explicit text typing prevents the driver's JSON serializer from encoding this string again.
   await database()`
     update match_jobs
     set status = 'completed', stage = 'completed', progress = 100,
-        result = ${JSON.stringify(result)}::jsonb, error_message = null,
+        result = ${JSON.stringify(result)}::text::jsonb, error_message = null,
         completed_at = now(), updated_at = now()
     where id = ${id}
   `;
@@ -203,12 +242,18 @@ export async function failJob(id: string, message: string): Promise<void> {
 
 export async function getProfileSnapshot(cacheKey: string): Promise<UserProfile | undefined> {
   await ensureSchema();
-  const rows = await database()<Array<{ profile: UserProfile }>>`
+  const rows = await database()<Array<{ profile: unknown }>>`
     select profile from profile_snapshots
     where cache_key = ${cacheKey} and expires_at > now()
     limit 1
   `;
-  return rows[0]?.profile ? structuredClone(rows[0].profile) : undefined;
+  if (!rows[0]) return undefined;
+  const profile = decodeStoredJson(rows[0].profile);
+  if (!isStoredProfile(profile)) {
+    console.warn('[jobs] invalid profile snapshot; recollection required');
+    return undefined;
+  }
+  return structuredClone(profile);
 }
 
 export async function saveProfileSnapshot(
@@ -218,10 +263,11 @@ export async function saveProfileSnapshot(
 ): Promise<void> {
   await ensureSchema();
   const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+  // Serialize once: send text, then let PostgreSQL cast it to a JSON object.
   await database()`
     insert into profile_snapshots (cache_key, username, profile, fetched_at, expires_at)
     values (
-      ${cacheKey}, ${profile.username}, ${JSON.stringify(profile)}::jsonb, now(), ${expiresAt}
+      ${cacheKey}, ${profile.username}, ${JSON.stringify(profile)}::text::jsonb, now(), ${expiresAt}
     )
     on conflict (cache_key) do update
     set profile = excluded.profile, fetched_at = now(), expires_at = excluded.expires_at

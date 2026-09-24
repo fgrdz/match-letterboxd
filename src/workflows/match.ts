@@ -1,5 +1,4 @@
 import { FatalError } from 'workflow';
-import { calculateMatch } from '@/domain/match/calculateMatch';
 import { envNumber } from '@/lib/config';
 import { AppError, publicError } from '@/lib/errors';
 import { completeComparison } from '@/services/compareProfiles';
@@ -52,47 +51,20 @@ async function collectProfile(username: string) {
   }
 }
 
-async function calculateCore(usernameA: string, usernameB: string) {
-  'use step';
-  try {
-    const [a, b] = await Promise.all([
-      getProfileSnapshot(snapshotKey(usernameA)),
-      getProfileSnapshot(snapshotKey(usernameB)),
-    ]);
-    if (!a || !b) throw new FatalError('Os perfis coletados não foram encontrados.');
-    const match = calculateMatch(a, b);
-    console.info(`[match] core calculated from ${match.stats.ratedByBoth} comparable movies`);
-  } catch (error) {
-    if (error instanceof FatalError) throw error;
-    throw new Error('Não foi possível calcular o resultado agora.');
-  }
-}
-
 async function enrichAndComplete(jobId: string, usernameA: string, usernameB: string) {
   'use step';
-  try {
-    const [a, b] = await Promise.all([
-      getProfileSnapshot(snapshotKey(usernameA)),
-      getProfileSnapshot(snapshotKey(usernameB)),
-    ]);
-    if (!a || !b) throw new FatalError('Os perfis coletados não foram encontrados.');
-    const result = await completeComparison(a, b);
-    await completeJob(jobId, result);
-  } catch (error) {
-    if (error instanceof FatalError) throw error;
-    throw new Error('Não foi possível concluir o enriquecimento dos filmes agora.');
-  }
+  const [a, b] = await Promise.all([
+    getProfileSnapshot(snapshotKey(usernameA)),
+    getProfileSnapshot(snapshotKey(usernameB)),
+  ]);
+  if (!a || !b) throw new FatalError('Os perfis coletados não foram encontrados.');
+  const result = await completeComparison(a, b);
+  await completeJob(jobId, result);
 }
 
 async function markFailed(jobId: string, message: string) {
   'use step';
   await failJob(jobId, message);
-}
-
-function workflowErrorMessage(error: unknown): string {
-  return error instanceof Error && error.message
-    ? error.message
-    : 'Não foi possível concluir a comparação. Tente novamente mais tarde.';
 }
 
 export async function runMatchWorkflow(jobId: string, usernameA: string, usernameB: string) {
@@ -103,12 +75,25 @@ export async function runMatchWorkflow(jobId: string, usernameA: string, usernam
     // Keep collection conservative across serverless invocations and paid upstream requests.
     await setProgress(jobId, 'collecting_profiles', 30);
     await collectProfile(usernameB);
+  } catch (error) {
+    console.error('[workflow] profile collection failed', error);
+    await markFailed(
+      jobId,
+      'Não foi possível coletar um dos perfis. Confira os logs do Workflow e tente novamente.',
+    );
+    return { jobId };
+  }
+
+  try {
     await setProgress(jobId, 'calculating_match', 50);
-    await calculateCore(usernameA, usernameB);
     await setProgress(jobId, 'enriching_movies', 60);
     await enrichAndComplete(jobId, usernameA, usernameB);
   } catch (error) {
-    await markFailed(jobId, workflowErrorMessage(error));
+    console.error('[workflow] comparison failed', error);
+    await markFailed(
+      jobId,
+      'Os perfis foram coletados, mas não foi possível calcular o resultado. Tente novamente.',
+    );
   }
   return { jobId };
 }
