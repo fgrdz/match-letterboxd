@@ -1,25 +1,35 @@
 'use client';
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { validateUsername } from '@/lib/validation/username';
 import { publicError } from '@/lib/errors';
 export function CompareForm() {
   const router = useRouter();
   const [error, setError] = useState('');
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   return (
     <form
       className="compare-form"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
         setError('');
         const data = new FormData(event.currentTarget);
         try {
           const a = validateUsername(data.get('a')),
             b = validateUsername(data.get('b'));
-          startTransition(() => router.push(`/match?${new URLSearchParams({ a, b })}`));
+          setPending(true);
+          const response = await fetch('/api/matches', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ a, b }),
+          });
+          const body = (await response.json()) as { href?: string; error?: string };
+          if (!response.ok || !body.href)
+            throw new Error(body.error || 'Não foi possível iniciar.');
+          router.push(body.href);
         } catch (err) {
-          setError(publicError(err));
+          setError(err instanceof Error ? err.message : publicError(err));
+          setPending(false);
         }
       }}
     >

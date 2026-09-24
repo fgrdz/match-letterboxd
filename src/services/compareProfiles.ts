@@ -24,53 +24,56 @@ export async function compareProfiles(provider: MovieProvider, inputA: string, i
     const [a, b] = results.map((r) =>
       structuredClone((r as PromiseFulfilledResult<UserProfile>).value),
     );
-    const initial = calculateMatch(a, b);
-    const selected = uniqueMovies([
-      ...initial.sharedFavorites.slice(0, 6).map((c) => c.movie),
-      ...initial.biggestDisagreements.slice(0, 6).map((c) => c.movie),
-      ...(initial.watchlistMatch ?? []).slice(0, 6),
-      ...initial.recommendations
-        .filter((r) => r.from === 'a')
-        .slice(0, 6)
-        .map((r) => r.movie),
-      ...initial.recommendations
-        .filter((r) => r.from === 'b')
-        .slice(0, 6)
-        .map((r) => r.movie),
-      ...initial.commonMovies.slice(0, 6).map((c) => c.movie),
-    ]).slice(0, envNumber('TMDB_MAX_MOVIES', 18, 0, 60));
-    const warnings = [...new Set([...a.warnings, ...b.warnings])];
-    let tmdbUnavailable = false;
-    for (const movie of selected) {
-      try {
-        const metadata = await enrichMovie(movie);
-        for (const profile of [a, b])
-          for (const item of [...profile.movies, ...(profile.watchlist ?? [])]) {
-            if (movieKey(item) === movieKey(movie))
-              Object.assign(
-                item,
-                Object.fromEntries(Object.entries(metadata).filter(([, v]) => v !== undefined)),
-              );
-          }
-      } catch {
-        tmdbUnavailable = true;
-        console.warn('[tmdb] enrichment unavailable; stopping optional enrichment');
-        warnings.push(
-          'O TMDB está indisponível. A comparação continua com os dados do Letterboxd.',
-        );
-        break;
-      }
-    }
-    if (!tmdbUnavailable) warnings.push(...(await enrichGenreSamples(a, b)));
-    else {
-      // Do not let the UI-selected metadata become the analytical population after an outage.
-      a.genreSample = { movieKeys: [], completed: false };
-      b.genreSample = { movieKeys: [], completed: false };
-    }
-    const match = calculateMatch(a, b);
-    console.info(`[match] ${match.stats.ratedByBoth} comparable movies`);
-    return { a, b, match, warnings, tmdbEnabled: Boolean(process.env.TMDB_API_KEY) };
+    return await completeComparison(a, b);
   } finally {
     active--;
   }
+}
+
+/** Completes a comparison from normalized profiles, independently of their source. */
+export async function completeComparison(a: UserProfile, b: UserProfile) {
+  const initial = calculateMatch(a, b);
+  const selected = uniqueMovies([
+    ...initial.sharedFavorites.slice(0, 6).map((c) => c.movie),
+    ...initial.biggestDisagreements.slice(0, 6).map((c) => c.movie),
+    ...(initial.watchlistMatch ?? []).slice(0, 6),
+    ...initial.recommendations
+      .filter((r) => r.from === 'a')
+      .slice(0, 6)
+      .map((r) => r.movie),
+    ...initial.recommendations
+      .filter((r) => r.from === 'b')
+      .slice(0, 6)
+      .map((r) => r.movie),
+    ...initial.commonMovies.slice(0, 6).map((c) => c.movie),
+  ]).slice(0, envNumber('TMDB_MAX_MOVIES', 18, 0, 60));
+  const warnings = [...new Set([...a.warnings, ...b.warnings])];
+  let tmdbUnavailable = false;
+  for (const movie of selected) {
+    try {
+      const metadata = await enrichMovie(movie);
+      for (const profile of [a, b])
+        for (const item of [...profile.movies, ...(profile.watchlist ?? [])]) {
+          if (movieKey(item) === movieKey(movie))
+            Object.assign(
+              item,
+              Object.fromEntries(Object.entries(metadata).filter(([, v]) => v !== undefined)),
+            );
+        }
+    } catch {
+      tmdbUnavailable = true;
+      console.warn('[tmdb] enrichment unavailable; stopping optional enrichment');
+      warnings.push('O TMDB está indisponível. A comparação continua com os dados do Letterboxd.');
+      break;
+    }
+  }
+  if (!tmdbUnavailable) warnings.push(...(await enrichGenreSamples(a, b)));
+  else {
+    // Do not let the UI-selected metadata become the analytical population after an outage.
+    a.genreSample = { movieKeys: [], completed: false };
+    b.genreSample = { movieKeys: [], completed: false };
+  }
+  const match = calculateMatch(a, b);
+  console.info(`[match] ${match.stats.ratedByBoth} comparable movies`);
+  return { a, b, match, warnings, tmdbEnabled: Boolean(process.env.TMDB_API_KEY) };
 }

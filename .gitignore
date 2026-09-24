@@ -6,3 +6,7 @@ coverage/
 *.tsbuildinfo
 test-results/
 .tmp/
+/.swc
+
+.vercel
+.env*.local

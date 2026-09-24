@@ -6,7 +6,15 @@ const messages = [
   'As páginas são consultadas com calma, respeitando a fonte.',
   'Perfis grandes podem levar alguns minutos.',
 ];
-export function LoadingMatch() {
+export function LoadingMatch({
+  message,
+  progress,
+  detail,
+}: {
+  message?: string;
+  progress?: number;
+  detail?: string;
+} = {}) {
   const [step, setStep] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => setStep((s) => Math.min(s + 1, messages.length - 1)), 5500);
@@ -26,14 +34,21 @@ export function LoadingMatch() {
         conecta vocês.
       </h1>
       <p role="status" aria-live="polite">
-        {messages[step]}
+        {message ?? messages[step]}
       </p>
+      {progress !== undefined && (
+        <div className="job-progress" aria-label={`${progress}% concluído`}>
+          <span style={{ width: `${progress}%` }} />
+        </div>
+      )}
       <div className="loading-cards" aria-hidden="true">
         <div />
         <div />
         <div />
       </div>
-      <p className="muted">Aguarde nesta página. Resultados recentes são reutilizados.</p>
+      <p className="muted">
+        {detail ?? 'Aguarde nesta página. Resultados recentes são reutilizados.'}
+      </p>
     </main>
   );
 }
