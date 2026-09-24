@@ -23,15 +23,17 @@ export function Banner() {
 
   return (
     <section className={styles.banner} aria-labelledby="home-title">
-      <Image
-        className={styles.backdrop}
-        src={animate ? '/banner/before-sunrise.gif' : '/banner/before-sunrise-still.webp'}
-        alt=""
-        fill
-        unoptimized
-        priority
-        sizes="100vw"
-      />
+      <div className={styles.media}>
+        <Image
+          className={styles.backdrop}
+          src={animate ? '/banner/before-sunrise.gif' : '/banner/before-sunrise-still.webp'}
+          alt=""
+          fill
+          unoptimized
+          priority
+          sizes="100vw"
+        />
+      </div>
       <div className={styles.shade} />
       <div className={styles.content}>
         <h1 id="home-title">
